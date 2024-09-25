@@ -2,7 +2,7 @@ import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import cors from "cors";
-import { ChatRoomManager } from "./controllers/ChatRoomManager";
+import { ChatRoomManager } from "./ChatRoomManager";
 
 const app = express();
 
@@ -27,29 +27,74 @@ io.on("connection", (socket) => {
 
   socket.on("joinRoom", ({ roomId, username }) => {
     socket.join(roomId);
+    let room = chatRoomManager.getChatRoom(roomId);
+    let userid = room.addUser(username);
 
-    const room = chatRoomManager.getChatRoom(roomId);
-    room.addUser(username);
+    console.log("User joined room:", roomId, username);
+    console.log(Array.from(room.users.values()));
 
-    io.to(roomId).emit("activeUsers", Array.from(room.users));
+
+    socket.emit("getUserId", userid);
+
+    io.to(roomId).emit("activeUsers", Array.from(room.users.values()));
     socket.emit("messageHistory", room.messages);
 
     socket.on("sendMessage", (message) => {
-        console.log("message", message);
-        
-      room.addMessage(message.user, message.message);
+      console.log("message", message);
+
+      room.addMessage(userid, message.user, message.message);
       io.to(roomId).emit("receiveMessage", { message });
     });
 
     socket.on("leaveRoom", ({ roomId, username }) => {
       socket.leave(roomId);
-      room.removeUser(username);
+      room.removeUser(userid);
+      console.log(room.users);
+
+
       io.to(roomId).emit("activeUsers", Array.from(room.users))
       io.to(roomId).emit("leavedPerson", username);
     });
 
     socket.on("disconnect", () => {
-      room.removeUser(username);
+      room.removeUser(userid);
+      io.to(roomId).emit("activeUsers", Array.from(room.users));
+    });
+  });
+
+  socket.on("joinPreviousRoom", ({ roomId, userId }:any) => {
+    socket.join(roomId);
+    let room = chatRoomManager.getChatRoom(roomId);
+    
+    let user:any = Array.from(room.users.values()).filter(user => user.id === userId);
+
+    if(user.length > 0){
+      socket.emit("usernotfound", false);
+    }
+
+    socket.emit("getUserId", userId);
+
+    io.to(roomId).emit("activeUsers", Array.from(room.users.values()));
+    socket.emit("messageHistory", room.messages);
+
+    socket.on("sendMessage", (message) => {
+      console.log("message", message);
+
+      room.addMessage(userId, message.user, message.message);
+      io.to(roomId).emit("receiveMessage", { message });
+    });
+
+    socket.on("leaveRoom", ({ roomId, username }) => {
+      socket.leave(roomId);
+      room.removeUser(user.userId);
+
+
+      io.to(roomId).emit("activeUsers", Array.from(room.users))
+      io.to(roomId).emit("leavedPerson", username);
+    });
+
+    socket.on("disconnect", () => {
+      room.removeUser(user.userId);
       io.to(roomId).emit("activeUsers", Array.from(room.users));
     });
   });
