@@ -1,0 +1,14 @@
+{
+    "compilerOptions": {
+        "module": "ESNext", // Use "ESNext" if using ESModules
+        "target": "ESNext",
+        "esModuleInterop": true,
+        "moduleResolution": "node",
+        "skipLibCheck": true,
+        "strict": true,
+        "allowSyntheticDefaultImports": true
+    },
+    "ts-node": {
+        "esm": true // Required for ts-node to handle .ts as ES modules
+    }
+}
